@@ -17,4 +17,7 @@ The rest of the files are used to reproduce the results present in the article:
 - The *Hetionet_Metapaths_Extraction.ipynb* notebook presents the related results to metapath-extraction.
 
 
+This will be updated regularly.
+
+
 
