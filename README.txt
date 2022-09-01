@@ -13,7 +13,7 @@ The *utils.py* and *grakel_utils.py* files, contain functionality code to suppor
 
 The rest of the files are used to reproduce the results present in the article:
 - The *scalability_test.py* reproduces the usability results presented in III.A.
-- The *graph_classification_with_gridsearch.py* reproduces the graph-kerenl comparison results presented in III.C.
+- The *graph_classification_with_gridsearch.py* reproduces the graph-kernel comparison results presented in III.C.
 - The *Hetionet_Metapaths_Extraction.ipynb* notebook presents the related results to metapath-extraction.
 
 
