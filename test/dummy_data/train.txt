@@ -1,0 +1,5 @@
+Kostas,knows,Nick
+Nick,knows,George
+George,is_friend,Anna
+Anna,lives_in,Athens
+George,lives_in,Athens
