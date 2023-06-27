@@ -11,11 +11,21 @@ def load_csv(
     pandas_first_row_header=False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Helper function that loads the data in pd.DataFrames and returns them.
+    Helper function that loads the collection of triples in pd.DataFrames and returns them.
+    It expects a collection of triples as .csv where each triple is in one line. E.g.
+    entity1, relation1, entity2,
+    entity1, relation2, entity3,
+    ...
+    If there is a header first row, please pass pandas_first_row_header=True
     Args:
-        path_to_file (str): path to folder with train.txt, valid.txt, test.txt
+        path_to_file (str): path to .csv co
         add_inverse_edges (str, optional):  Whether to add the inverse edges.
         Possible values "YES", "YES__INV", "NO". Defaults to "NO".
+        If "YES" will simply add the inverse edges. Eg.
+        If "entity1, relation1, entity2" exists it will add "entity2, relation1, entity1"
+        If "YES__INV" it will add the inverse edges with a suffix. Eg.
+        If "entity1, relation1, entity2" exists it will add "entity2, relation1__INV, entity1"
+        If "NO" it will add no new triples.
         pandas_sep (str, optional): the separator to use in pd.read_csv,
         when loading the data. Defaults to ",".
         pandas_first_row_header (bool, optional): whether the first row of the file
@@ -51,22 +61,26 @@ def load_csv(
     return df_train_orig, df_train
 
 
-def load_whole_dataset(
+def load_data(
     path_to_folder: str, project_name: str, add_inverse_edges: str = "NO"
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, set]:
     """
-    Helper function that loads a whole dataset in pd.DataFrames and returns them.
+    Helper function that loads the data in pd.DataFrames and returns them.
+    No header row is expected here. It follows the same convention as load_csv dataset.
     Args:
         path_to_folder (str): path to folder with train.txt, valid.txt, test.txt
         project_name (str): name of the project
         add_inverse_edges (str, optional):  Whether to add the inverse edges.
         Possible values "YES", "YES__INV", "NO". Defaults to "NO".
+
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, set]:
+        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, set]: [description]
     """
     PROJECT_DETAILS = {
+        "test": {"skiprows": 0, "sep": ","},
         "lc-neo4j": {"skiprows": 1, "sep": "\t"},
         "codex-s": {"skiprows": 0, "sep": "\t"},
+        "codex-l": {"skiprows": 0, "sep": "\t"},
         "WN18RR": {"skiprows": 0, "sep": "\t"},
         "YAGO3-10-DR": {"skiprows": 0, "sep": "\t"},
         "YAGO3-10": {"skiprows": 0, "sep": "\t"},
@@ -94,7 +108,7 @@ def load_whole_dataset(
         df_train_inv["tail"] = df_train["head"]
         if add_inverse_edges == "YES__INV":
             df_train_inv["rel"] = df_train["rel"] + "__INV"
-        df_train = pd.concat((df_train, df_train_inv))
+        df_train = df_train.append(df_train_inv)
     if project_name in ["lc-neo4j"]:
         df_eval = pd.DataFrame()
         df_test = pd.DataFrame()

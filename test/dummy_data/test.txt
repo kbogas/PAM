@@ -1,0 +1,2 @@
+Nick,knows,Anna
+George,lives_in,Athens
