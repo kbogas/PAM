@@ -62,7 +62,11 @@ def load_csv(
 
 
 def load_data(
-    path_to_folder: str, project_name: str, add_inverse_edges: str = "NO"
+    path_to_folder: str,
+    project_name: str,
+    add_inverse_edges: str = "NO",
+    skiprows: int = 0,
+    sep: str = "\t",
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, set]:
     """
     Helper function that loads the data in pd.DataFrames and returns them.
@@ -72,12 +76,15 @@ def load_data(
         project_name (str): name of the project
         add_inverse_edges (str, optional):  Whether to add the inverse edges.
         Possible values "YES", "YES__INV", "NO". Defaults to "NO".
+        skiprows (int, optional): Number of rows to skip. Pleas provide if new dataset.
+        Default is 0.
+        sep (str, optional): Separator for read_csv. Please provide if new dataset.
+        Default is '\t'.
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, set]: [description]
     """
     PROJECT_DETAILS = {
-        "test": {"skiprows": 0, "sep": ","},
         "lc-neo4j": {"skiprows": 1, "sep": "\t"},
         "codex-s": {"skiprows": 0, "sep": "\t"},
         "codex-l": {"skiprows": 0, "sep": "\t"},
@@ -88,6 +95,10 @@ def load_data(
         "NELL995": {"skiprows": 0, "sep": "\t"},
         "DDB14": {"skiprows": 0, "sep": "\t"},
     }
+
+    # Try out with generic skiprows=0 and sep='\t'
+    if not project_name in PROJECT_DETAILS:
+        PROJECT_DETAILS[project_name] = {"skiprows": skiprows, "sep": sep}
 
     df_train = pd.read_csv(
         os.path.join(path_to_folder, "train.txt"),
@@ -153,7 +164,7 @@ def load_data(
 
 
 if __name__ == "__main__":
-    path = "../test/dummy_data/train.txt"
+    path = "../data/dummy_data/train.txt"
     df_train_orig, df_train = load_csv(path, add_inverse_edges="YES")
     print(df_train_orig)
     assert df_train_orig.shape[0] * 2 == df_train.shape[0]
