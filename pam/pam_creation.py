@@ -91,18 +91,14 @@ def create_pam_matrices(
         use_log (bool, optional): Whether to use log of primes for numerical stability.
         Defaults to True.
 
-        method (Literal["legacy", "log_plus_plus", "log_plus_times"], optional):  Method of multiplication.
+        method (Literal["plus_times", "plus_plus", "constant"], optional):  Method of multiplication.
         - "plus_times": Generic matrix multiplication GrapBLAS multiplication.
         - "plus_plus": Matrix multiplication using a plus_plus semiring using GraphBLAS. Use with use_log=True recommended.
-        - "constant": Matrix
-        Defaults to "legacy".
+        - "constant": Replace all values in the 1-hop matrix with ones. For benchmarking purposes.
+        Defaults to "plus_times".
 
         spacing_strategy (str, optional): The spacing strategy as mentioned in get_prime_map_from_rel.
         Defaults to "step_10".
-
-        eliminate_eliminate_diagonalzeros (bool, optional): Whether to zero-out the diagonal in each k-hop.
-        (This essentially removes cyclic paths from being propagated).
-        Defaults to False.
 
         break_with_sparsity_threshold (int, optional): The percentage of sparsity that is not accepted.
         If one of the k-hop PAMs has lower sparsity we break the calculations and do not include it
@@ -124,7 +120,9 @@ def create_pam_matrices(
     """
 
     # Number of unique rels and nodes
+    print(df_train)
     unique_rels = sorted(list(df_train["rel"].unique()))
+
     unique_nodes = sorted(
         set(df_train["head"].values.tolist() + df_train["tail"].values.tolist())  # type: ignore
     )
@@ -217,9 +215,11 @@ def create_pam_matrices(
     broke_cause_of_sparsity = False
     for ii in range(1, max_order):
         print(f"Hop {ii + 1}")
-        updated_power_gb = pam_power_gb[-1].mxm(A_gb, method).new()
+        cur_previous_power = pam_power_gb[-1].dup()
         if eliminate_diagonal:
-            updated_power_gb.setdiag(0)
+            cur_previous_power.setdiag(0)
+        updated_power_gb = cur_previous_power.mxm(A_gb, method).new()
+
         updated_power = gb.io.to_scipy_sparse(updated_power_gb)
 
         sparsity = get_sparsity(updated_power)
