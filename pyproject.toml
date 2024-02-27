@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 
 [project]
-name = "pam"
+name = "prime_adj"
 description = "Prime Adjacency Matrix for Multi-relational Networks "
 readme = "README.md"
 license.file = "LICENSE.md"
