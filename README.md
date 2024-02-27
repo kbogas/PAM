@@ -19,22 +19,27 @@ For example, running:
 
 ```py
 
-from data_loading import load_data
-from pam_creation import create_pam_matrices
-from rule_generation import create_ruleset
-from utils import calculate_hits_at_k
+from prime_adj.data_loading import load_data
+from prime_adj.pam_creation import create_pam_matrices
+from prime_adj.rule_generation import create_ruleset
+from prime_adj.tail_prediction_with_rules import predict_tail_with_explanations
+from prime_adj.utils import calculate_hits_at_k
 
-path = "../test/dummy_data"
+path = "./data/dummy_data/"
 project_name = "test"
 
 df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-    path, project_name=project_name, add_inverse_edges='NO
+    path, project_name=project_name, add_inverse_edges="NO", sep=","
 )
 print(f"\nLoaded Data, will create PAMs... \n")
 
-pam_1hop_lossless, pam_powers, node2id, rel2id = create_pam_matrices(
-    df_train, use_log=False, max_num_hops=3
-)
+(
+    pam_1hop_lossless,
+    pam_powers,
+    node2id,
+    rel2id,
+    broke_with_sparsity,
+) = create_pam_matrices(df_train, use_log=False, max_order=3)
 print(f"\nCreated PAMs, will generate rules... \n")
 
 all_rules_df = create_ruleset(
@@ -47,6 +52,7 @@ k_hop_pams = [pam_1hop_lossless] + pam_powers[1:]
 predict_tail_with_explanations(
     df_test, all_rules_df, k_hop_pams, node2id, rel2id, rank_rules_by_="score"
 )
+
 ```
 
 Will load the dummy data, calculate up to 3-hop PAMs, generate rules, predict possible tail candidates for each the two test queries in the *./test/dummy_data/test.txt* file and print those predictions...

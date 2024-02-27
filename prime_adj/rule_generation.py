@@ -3,7 +3,7 @@ import pandas as pd
 import tqdm
 from scipy.sparse import csr_array
 
-from utils import get_primefactors
+from prime_adj.utils import get_primefactors
 
 
 def create_ruleset(
