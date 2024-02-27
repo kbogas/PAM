@@ -1,11 +1,20 @@
-# PAM
+# Prime Adjacency Matrix
 A bare-bones implementation of the [PAM framework](https://arxiv.org/abs/2209.06575), i.e. Prime Adjacency Matrices for Multi-relational Networks.
 
 
 Mainly used for testing.
 Check each .py in its "__main__"" component where we call each of the major functions for their functionalities.
 
-It works as it is for any collection of triples in the form of a .txt where each line corresponds to one triple
+## Installation
+You can install it manually (by cloining and using requiremets.txt) or through pip:
+
+```cmd
+pip install prime_adj
+```
+
+## Usage
+
+It works using as input any collection of triples in the form of a .txt where each line corresponds to one triple
 in the form:
 
 ```

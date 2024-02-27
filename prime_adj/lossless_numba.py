@@ -412,14 +412,5 @@ if __name__ == "__main__":
         mappings,
     ) = create_lossless_khops(df_train_orig, max_hop, print_)
 
-    (
-        pam_1hop_lossless,
-        power_A,
-        node2id,
-        rel2id,
-        broke_cause_of_sparsity,
-        mappings,
-    ) = create_lossless_khops(df_train_orig, max_hop=max_hop)
-
     time_taken = time.time() - total_s
     print(f"Overall {time_taken:.2f} seconds ({time_taken/60:.2f} mins)")

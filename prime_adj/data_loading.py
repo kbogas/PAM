@@ -1,4 +1,5 @@
 import os
+
 import pandas as pd
 
 
@@ -117,7 +118,7 @@ def load_data(
         df_train_inv["tail"] = df_train["head"]
         if add_inverse_edges == "YES__INV":
             df_train_inv["rel"] = df_train["rel"] + "__INV"
-        df_train = df_train.append(df_train_inv)
+        df_train = pd.concat((df_train, df_train_inv))
     if project_name in ["lc-neo4j"]:
         df_eval = pd.DataFrame()
         df_test = pd.DataFrame()
