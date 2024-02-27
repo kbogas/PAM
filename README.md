@@ -1,5 +1,6 @@
 # PAM
-A bare-bones implementation of the [PAM framework](https://arxiv.org/abs/2209.06575).
+A bare-bones implementation of the [PAM framework](https://arxiv.org/abs/2209.06575), i.e. Prime Adjacency Matrices for Multi-relational Networks.
+
 
 Mainly used for testing.
 Check each .py in its "__main__"" component where we call each of the major functions for their functionalities.
@@ -13,7 +14,7 @@ ent2, rel2, ent3
 ```
 The delimiters can change. Please see load_data.py file for this.
 
-You can check each of the .py files for the specific functionality you are intersted in.
+You can check each of the .py files for the specific functionality you are interested in.
 For example, running:
 
 ```py
