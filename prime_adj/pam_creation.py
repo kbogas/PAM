@@ -250,7 +250,7 @@ def get_sparsity(A: csr_array) -> float:
 if __name__ == "__main__":
     from data_loading import load_csv
 
-    path = "../data/dummy_data/train.txt"
+    path = "./data/dummy_data/train.txt"
 
     df_train_orig, df_train = load_csv(path, add_inverse_edges="YES")
     # print(df_train_orig)

@@ -1,7 +1,5 @@
 import os
-
 import pandas as pd
-from sympy import nextprime, primefactors
 
 
 def load_csv(
@@ -164,7 +162,7 @@ def load_data(
 
 
 if __name__ == "__main__":
-    path = "../data/dummy_data/train.txt"
+    path = "./data/dummy_data/train.txt"
     df_train_orig, df_train = load_csv(path, add_inverse_edges="YES")
     print(df_train_orig)
     assert df_train_orig.shape[0] * 2 == df_train.shape[0]

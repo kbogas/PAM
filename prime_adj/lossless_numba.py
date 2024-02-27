@@ -10,7 +10,8 @@ from numba.typed import Dict
 from scipy.sparse import csr_array
 from sympy.ntheory import factorint, nextprime
 
-from pam_creation import create_pam_matrices
+from prime_adj.pam_creation import create_pam_matrices
+from prime_adj.utils import get_sparsity
 
 
 def extend_paths(
@@ -369,7 +370,6 @@ def create_lossless_khops(
             print(
                 f"Hop {cur_hop_index + 2}: Created {num_overflow} overflows and {num_inf} infinities during calculations"
             )
-        from utils import get_sparsity
 
         sparsity = get_sparsity(updated_A)
         if print_:
@@ -390,8 +390,8 @@ if __name__ == "__main__":
 
     project_name = "test"
     add_inverse_edges = "NO"
-    path = "../data/dummy_data"
-    max_hop = 3
+    path = "./data/dummy_data"
+    max_hop = 2
     print_ = True
 
     df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
