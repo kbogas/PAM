@@ -1,4 +1,3 @@
-import time
 from typing import Literal
 
 import graphblas as gb
@@ -12,7 +11,6 @@ def get_prime_map_from_rel(
     list_of_rels: list,
     starting_value: int = 2,
     spacing_strategy: str = "step_10",
-    add_inverse_edges: bool = False,
 ) -> tuple[dict, dict]:
     """
     Helper function that given a list of relations returns the mappings to and from the
@@ -77,6 +75,7 @@ def create_pam_matrices(
     eliminate_diagonal: bool = False,
     break_with_sparsity_threshold: float = -1,
     check_error_lossless: bool = True,
+    print_: bool = False,
 ) -> tuple[csr_array, list[csr_array], dict, dict, bool]:
 
     """Helper function that creates the pam matrices.
@@ -120,23 +119,22 @@ def create_pam_matrices(
     """
 
     # Number of unique rels and nodes
-    print(df_train)
+
     unique_rels = sorted(list(df_train["rel"].unique()))
 
     unique_nodes = sorted(
         set(df_train["head"].values.tolist() + df_train["tail"].values.tolist())  # type: ignore
     )
-    print(
-        f"# of unique rels: {len(unique_rels)} \t | # of unique nodes: {len(unique_nodes)}"
-    )
+    if print_:
+        print(
+            f"# of unique rels: {len(unique_rels)} \t | # of unique nodes: {len(unique_nodes)}"
+        )
 
     node2id = {}
     id2node = {}
     for i, node in enumerate(unique_nodes):
         node2id[node] = i
         id2node[i] = node
-
-    time_s = time.time()
 
     # Map the relations to primes
     rel2id, id2rel = get_prime_map_from_rel(
@@ -146,14 +144,14 @@ def create_pam_matrices(
     )
 
     # Map all node and rel values to the corresponding numerical ones.
-    df_train["rel_mapped"] = df_train["rel"].map(rel2id)
+    df_train["rel_mapped"] = df_train["rel"].astype(str).map(rel2id)
     df_train["head_mapped"] = df_train["head"].map(node2id)
     df_train["tail_mapped"] = df_train["tail"].map(node2id)
 
     # Create the lossless representation (with product). This may lead to overflows due to the product.
     aggregated_df_lossless = (
         df_train.groupby(["head_mapped", "tail_mapped"])["rel_mapped"]
-        .aggregate(np.prod)
+        .aggregate("prod")
         .reset_index()
     )
 
@@ -179,18 +177,19 @@ def create_pam_matrices(
 
     # If use log, will need to re-map the values
     if use_log:
-        print(f"Will map to logs!")
+        if print_:
+            print(f"Will map to logs!")
         id2rel = {}
         for k, v in rel2id.items():
             rel2id[k] = np.log(v)
             id2rel[np.log(v)] = k
 
-    df_train["rel_mapped"] = df_train["rel"].map(rel2id)
+    df_train["rel_mapped"] = df_train["rel"].astype(str).map(rel2id)
 
     # Create the lossy 1-hop with log-sum-sum
     aggregated_df = (
         df_train.groupby(["head_mapped", "tail_mapped"])["rel_mapped"]
-        .aggregate(np.sum)
+        .aggregate("sum")
         .reset_index()
     )
     pam_1hop_lossy = csr_array(
@@ -214,7 +213,8 @@ def create_pam_matrices(
     pam_power_gb = [A_gb]
     broke_cause_of_sparsity = False
     for ii in range(1, max_order):
-        print(f"Hop {ii + 1}")
+        if print_:
+            print(f"Hop {ii + 1}")
         cur_previous_power = pam_power_gb[-1].dup()
         if eliminate_diagonal:
             cur_previous_power.setdiag(0)
@@ -223,11 +223,13 @@ def create_pam_matrices(
         updated_power = gb.io.to_scipy_sparse(updated_power_gb)
 
         sparsity = get_sparsity(updated_power)
-        print(f"Sparsity {ii + 1}-hop: {sparsity:.2f} %")
+        if print_:
+            print(f"Sparsity {ii + 1}-hop: {sparsity:.2f} %")
         if sparsity < 100 * break_with_sparsity_threshold and ii > 1:
-            print(
-                f"Stopped at {ii + 1} hops due to non-sparse matrix.. Current sparsity {sparsity:.2f} % < {break_with_sparsity_threshold}"
-            )
+            if print_:
+                print(
+                    f"Stopped at {ii + 1} hops due to non-sparse matrix.. Current sparsity {sparsity:.2f} % < {break_with_sparsity_threshold}"
+                )
             broke_cause_of_sparsity = True
             break
         pam_powers.append(updated_power)
@@ -250,7 +252,7 @@ def get_sparsity(A: csr_array) -> float:
 if __name__ == "__main__":
     from data_loading import load_csv
 
-    path = "./data/dummy_data/train.txt"
+    path = "../data/dummy_data/train.txt"
 
     df_train_orig, df_train = load_csv(path, add_inverse_edges="YES")
     # print(df_train_orig)
