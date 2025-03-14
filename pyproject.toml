@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+
+[project]
+name = "prime_adj"
+description = "Prime Adjacency Matrix for Multi-relational Networks "
+readme = "README.md"
+license.file = "LICENSE.md"
+authors = [
+  { name = "Konstantinos Bougiatiotis", email = "bogas.ko@email.com" },
+]
+requires-python = ">=3.9"
+version="0.0.9"
+dynamic = ["dependencies"]
+
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Operating System :: Unix",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/kbogas/PAM"
+ArXiv = "https://arxiv.org/abs/2209.06575"

@@ -6,7 +6,7 @@ import pandas as pd
 import tqdm
 from scipy.sparse import csr_array
 
-from utils import get_primefactors_multiplicity
+from prime_adj.utils import get_primefactors_multiplicity
 
 
 def noisy_or_aggregator(confidences: list):
@@ -359,7 +359,7 @@ if __name__ == "__main__":
 
     # Data Loader details
     # Path to data folder containing train.txt and test.txt
-    path = "../data/dummy_data"
+    path = "./data/dummy_data"
     # Check load_data and change it according to the particularities of your dataset
     # e.g. the separator is '\t' instead of ','
     project_name = "test"

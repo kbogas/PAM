@@ -3,7 +3,7 @@ import pandas as pd
 import tqdm
 from scipy.sparse import csr_array
 
-from utils import get_primefactors
+from prime_adj.utils import get_primefactors
 
 
 def create_ruleset(
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     from data_loading import load_data
     from pam_creation import create_pam_matrices
 
-    path = "../data/dummy_data"
+    path = "./data/dummy_data"
 
     df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
         path, project_name="test", add_inverse_edges="NO", sep=",", skiprows=0
