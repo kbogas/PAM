@@ -25,18 +25,18 @@ def generate_path_features(
 
     num_nodes = pam_powers[0].shape[0]
     if len(pairs) == 0:
-        pairs = [
-            item for item in product(list(range(num_nodes)), list(range(num_nodes)))
-        ]
+        pairs = product(list(range(num_nodes)), list(range(num_nodes)))
     features = []
+    pair_names = []
     for pair in pairs:
         cur_features = []
         for k_hop_pam in pam_powers:
             cur_features.append(k_hop_pam[pair[0], pair[1]])
         features.append(np.array(cur_features))
+        pair_names.append(pair)
     feats = np.array(features)
     feats = pd.DataFrame(feats, columns=[f"val@{k+1}" for k in range(len(pam_powers))])
-    feats["pairs"] = pairs
+    feats["pairs"] = pair_names
     return feats
 
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     path = "../data/dummy_data"
 
     df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-        path, project_name="test", add_inverse_edges="NO", sep=","
+        path, project_name="test", add_inverse_edges="YES", sep=","
     )
     (
         pam_1hop_lossless,

@@ -78,7 +78,6 @@ def create_pam_matrices(
     break_with_sparsity_threshold: float = -1,
     check_error_lossless: bool = True,
 ) -> tuple[csr_array, list[csr_array], dict, dict, bool]:
-
     """Helper function that creates the pam matrices.
 
     Args:
@@ -107,7 +106,7 @@ def create_pam_matrices(
         break_with_sparsity_threshold (int, optional): The percentage of sparsity that is not accepted.
         If one of the k-hop PAMs has lower sparsity we break the calculations and do not include it
         in the returned matrices list.
-        Defaults to "step_10".
+        Defaults to -1.
 
         eliminate_diagonal (bool, optional): Whether to zero-out the diagonal in each k-hop.
         (This essentially removes cyclic paths from being propagated).
@@ -135,8 +134,8 @@ def create_pam_matrices(
     node2id = {}
     id2node = {}
     for i, node in enumerate(unique_nodes):
-        node2id[node] = i
-        id2node[i] = node
+        node2id[node] = int(i)
+        id2node[int(i)] = node
 
     time_s = time.time()
 

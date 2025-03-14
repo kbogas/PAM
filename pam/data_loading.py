@@ -86,6 +86,7 @@ def load_data(
     """
     PROJECT_DETAILS = {
         "lc-neo4j": {"skiprows": 1, "sep": "\t"},
+        "ad-neo4j": {"skiprows": 1, "sep": ","},
         "codex-s": {"skiprows": 0, "sep": "\t"},
         "codex-l": {"skiprows": 0, "sep": "\t"},
         "WN18RR": {"skiprows": 0, "sep": "\t"},
@@ -119,8 +120,8 @@ def load_data(
         df_train_inv["tail"] = df_train["head"]
         if add_inverse_edges == "YES__INV":
             df_train_inv["rel"] = df_train["rel"] + "__INV"
-        df_train = df_train.append(df_train_inv)
-    if project_name in ["lc-neo4j"]:
+        df_train = pd.concat([df_train, df_train_inv], ignore_index=True)
+    elif project_name in ["lc-neo4j", "ad-neo4j"]:
         df_eval = pd.DataFrame()
         df_test = pd.DataFrame()
         already_seen_triples = set(df_train.to_records(index=False).tolist())
@@ -139,14 +140,20 @@ def load_data(
                 f"No valid.txt found in {path_to_folder}... df_eval will contain the train data.."
             )
             df_eval = df_train.copy()
-        df_test = pd.read_csv(
-            os.path.join(path_to_folder, "test.txt"),
-            sep=PROJECT_DETAILS[project_name]["sep"],
-            header=None,
-            dtype="str",
-            skiprows=PROJECT_DETAILS[project_name]["skiprows"],
-        )
-        df_test.columns = ["head", "rel", "tail"]  # type: ignore
+        try:
+            df_test = pd.read_csv(
+                os.path.join(path_to_folder, "test.txt"),
+                sep=PROJECT_DETAILS[project_name]["sep"],
+                header=None,
+                dtype="str",
+                skiprows=PROJECT_DETAILS[project_name]["skiprows"],
+            )
+            df_test.columns = ["head", "rel", "tail"]  # type: ignore
+        except FileNotFoundError:
+            print(
+                f"No test.txt found in {path_to_folder}... df_test will contain the train data.."
+            )
+            df_test = df_train.copy()
         if "YAGO" in project_name:
             for cur_df in [df_train, df_eval, df_test]:
                 for col in cur_df.columns:
