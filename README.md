@@ -1,5 +1,7 @@
 # Prime Adjacency Matrices and Bag of Paths
 
+![Prime Adjacency Matrices and Bag of Paths overview](pam_image.jpeg)
+
 `prime-adj` is a CPU-oriented Python implementation of Prime Adjacency Matrices
 (PAMs) for multi-relational directed graphs. PAM uses numeric relation weights
 and sparse multiplication to summarize multi-hop walks in a fast and efficient manner. Bag of Paths (BoP) turns those summaries into sparse features for nodes, pairs, and graphs.
@@ -8,7 +10,8 @@ The distribution is `prime-adj`.
 
 ## Installation
 
-Python 3.11–3.14 is supported, tested on Linux and macOS.
+Python 3.11–3.14 is supported. CI tests every supported version on Linux; the
+current development environment also passes on macOS.
 
 ```bash
 python -m pip install prime-adj

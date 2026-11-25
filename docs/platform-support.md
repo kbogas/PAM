@@ -2,9 +2,11 @@
 
 The supported stable interpreter range is Python 3.11 through 3.14. Python 3.14
 is the newest verified stable minor as of 25 November 2026. CI tests every minor
-in that range on Linux and macOS, runs both numeric semirings through the test
-suite, checks SciPy/GraphBLAS sparse conversion, executes the example, builds
-both distributions, and imports the wheel from outside the checkout.
+in that range on Linux, runs both numeric semirings through the test suite,
+checks SciPy/GraphBLAS sparse conversion, executes the example, builds both
+distributions, and imports the wheel from outside the checkout. The current
+development environment also passes on macOS, but macOS is not part of the
+hosted matrix.
 
 The core numeric boundary is python-graphblas with SuiteSparse for PAM
 multiplication, SciPy CSR for the public sparse boundary, and NumPy for arrays.
