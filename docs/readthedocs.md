@@ -11,15 +11,12 @@ The project is registered on Read the Docs with display name **PrimeAdj**, slug
 https://primeadj.readthedocs.io/
 ```
 
-The project uses Read the Docs direct upload. `.github/workflows/docs.yml`
-builds the MkDocs site, publishes branch, tag and same-repository pull-request
-versions, updates `latest` from `main`, and updates `stable` from every `v*`
-release tag. The GitHub repository must contain an Actions secret named
-`READTHEDOCS_TOKEN` holding a project token with only the **Upload
-documentation** permission. Never commit or paste that token into project
-files.
+Read the Docs builds the site directly from GitHub using `.readthedocs.yaml`.
+That configuration installs the `bop` and `docs` extras and builds
+`mkdocs.yml`. No API token or GitHub upload workflow is required. The ordinary
+GitHub CI workflow independently regenerates the figures, runs the tutorials,
+and performs a strict documentation build so pull requests fail before a
+broken site reaches Read the Docs.
 
-The upload action is pinned to an immutable commit. Fork pull requests cannot
-access the upload token; the ordinary CI workflow still builds their docs.
-`.readthedocs.yaml` remains available if the project later switches from direct
-upload to native Read the Docs builds.
+The hosted `latest` version tracks `main`. Release tags should be activated in
+Read the Docs and the matching released version selected as `stable`.
