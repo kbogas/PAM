@@ -1,6 +1,4 @@
-python-graphblas>=2024.2.0
-asuitesparse-graphblas>=8.2.1.0
-numba>=0.58.1
+python-graphblas[default]>=2024.2.0
 numpy>=1.26.3
 pandas>=2.1.4
 scipy>=1.11.4

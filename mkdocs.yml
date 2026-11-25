@@ -1,0 +1,51 @@
+site_name: prime-adj documentation
+site_description: Prime Adjacency Matrices and sparse Bag of Paths
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://primeadj.readthedocs.io/"]
+repo_url: https://github.com/kbogas/PAM
+repo_name: kbogas/PAM
+strict: true
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            members_order: source
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+nav:
+  - Home: index.md
+  - Installation and migration: installation.md
+  - Concepts:
+      - Mapping and semirings: mapping-contract.md
+      - Data loading: data-loading.md
+      - Bag of Paths: bag-of-paths.md
+      - Public API behavior: public-api.md
+      - Platform support: platform-support.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Node embeddings: tutorials/nodes.md
+      - Pair embeddings: tutorials/pairs.md
+      - Induced subgraphs: tutorials/subgraphs.md
+      - Multiple graphs: tutorials/multigraph.md
+      - WN18RR walkthrough: tutorials/wn18rr.md
+  - Experiments: experiments.md
+  - API reference:
+      - PAM construction: api/pam_creation.md
+      - Bag of Paths: api/bop.md
+      - Data loading: api/data_loading.md
+      - Prediction: api/prediction.md
+      - Rules: api/rules.md
+  - Read the Docs status: readthedocs.md

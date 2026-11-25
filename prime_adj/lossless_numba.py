@@ -378,39 +378,3 @@ def create_lossless_khops(
         power_A.append(updated_A)
 
     return A_sparse, power_A, node2id, rel2id, broke_cause_of_sparsity, mappings
-
-
-################################################## HARD-CODED FASLE USE_LOG ########################################3
-
-if __name__ == "__main__":
-
-    import time
-
-    from data_loading import load_data
-
-    project_name = "test"
-    add_inverse_edges = "NO"
-    path = "./data/dummy_data"
-    max_hop = 2
-    print_ = True
-
-    df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-        path,
-        project_name=project_name,
-        add_inverse_edges=add_inverse_edges,
-        sep=",",
-        skiprows=0,
-    )
-
-    total_s = time.time()
-    (
-        A_sparse,
-        power_A,
-        node2id,
-        rel2id,
-        broke_cause_of_sparsity,
-        mappings,
-    ) = create_lossless_khops(df_train_orig, max_hop, print_)
-
-    time_taken = time.time() - total_s
-    print(f"Overall {time_taken:.2f} seconds ({time_taken/60:.2f} mins)")

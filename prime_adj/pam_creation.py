@@ -1,10 +1,15 @@
 from typing import Literal
+import warnings
+import math
+from dataclasses import dataclass
 
 import graphblas as gb
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_array
 from sympy import nextprime
+
+from prime_adj.utils import get_sparsity
 
 
 def get_prime_map_from_rel(
@@ -66,7 +71,41 @@ def get_prime_map_from_rel(
     return rel2prime, prime2rel
 
 
-def create_pam_matrices(
+@dataclass(frozen=True)
+class PAMMetadata:
+    """Configuration needed to interpret a numeric PAM result."""
+
+    encoding: str
+    use_log: bool
+    semiring: str
+    eliminate_diagonal: bool
+    minimum_sparsity: float | None
+
+
+@dataclass(frozen=True)
+class PAMResult:
+    """Typed PAM result; matrices are ordered from one hop upward."""
+
+    one_hop_exact: csr_array
+    powers: tuple[csr_array, ...]
+    node_map: dict
+    relation_map: dict
+    metadata: PAMMetadata
+    stopping_reason: Literal["max_order", "sparsity_threshold", "empty_graph"]
+
+    def as_legacy_tuple(self) -> tuple[csr_array, list[csr_array], dict, dict, bool]:
+        """Return the five-element tuple used by releases through 0.0.10."""
+
+        return (
+            self.one_hop_exact,
+            list(self.powers),
+            self.node_map,
+            self.relation_map,
+            self.stopping_reason == "sparsity_threshold",
+        )
+
+
+def _create_pam_matrices(
     df_train: pd.DataFrame,
     max_order: int = 5,
     use_log: bool = True,
@@ -76,6 +115,7 @@ def create_pam_matrices(
     break_with_sparsity_threshold: float = -1,
     check_error_lossless: bool = True,
     print_: bool = False,
+    relation_mapping: dict[str, int | float] | None = None,
 ) -> tuple[csr_array, list[csr_array], dict, dict, bool]:
     """Helper function that creates the pam matrices.
 
@@ -92,7 +132,8 @@ def create_pam_matrices(
         method (Literal["plus_times", "plus_plus", "constant"], optional):  Method of multiplication.
         - "plus_times": Generic matrix multiplication GrapBLAS multiplication.
         - "plus_plus": Matrix multiplication using a plus_plus semiring using GraphBLAS. Use with use_log=True recommended.
-        - "constant": Replace all values in the 1-hop matrix with ones. For benchmarking purposes.
+        - "constant": Deprecated legacy alias for ``method="plus_times",
+          spacing_strategy="constant"``.
         Defaults to "plus_times".
 
         spacing_strategy (str, optional): The spacing strategy as mentioned in get_prime_map_from_rel.
@@ -110,12 +151,46 @@ def create_pam_matrices(
         check_error_lossless (bool, optional): Whether to check for int overflow for the loss-less matrix.
         Defaults to True.
 
+        relation_mapping (dict, optional): A pre-fitted relation-to-number map.
+        All relations in ``df_train`` must be present. Extra entries are retained,
+        allowing one shared map to be reused by graphs with different subsets.
+
     Returns:
         tuple[csr_matrix, list[csr_matrix], dict, dict, bool]: The first argument is the lossless 1-hop PAM with products.
         The second is a list of the lossy PAMs powers, the third argument is the node2id dictionary and
         the fourth argument is the relation to id dictionary. The fifth argument is weather the matrix creation process
         was broken due to sparsity.
     """
+
+    if max_order < 1:
+        raise ValueError("max_order must be at least 1")
+    if method == "constant":
+        warnings.warn(
+            "method='constant' is deprecated; use method='plus_times' with "
+            "spacing_strategy='constant'",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        method = "plus_times"
+        spacing_strategy = "constant"
+    if method not in {"plus_times", "plus_plus"}:
+        raise ValueError(f"Unsupported multiplication method: {method!r}")
+    if spacing_strategy == "constant" and use_log:
+        raise ValueError(
+            "constant-one encoding cannot be combined with use_log=True: "
+            "log(1) is zero and does not carry an edge through multiplication"
+        )
+    if break_with_sparsity_threshold != -1 and not (
+        0 <= break_with_sparsity_threshold <= 1
+    ):
+        raise ValueError(
+            "break_with_sparsity_threshold must be -1 (disabled) or a "
+            "minimum sparsity fraction in [0, 1]"
+        )
+
+    # Mapping columns are implementation details and must never leak into the
+    # caller's frame or make repeated calls order-dependent.
+    df_train = df_train.copy(deep=True)
 
     # Number of unique rels and nodes
 
@@ -136,11 +211,29 @@ def create_pam_matrices(
         id2node[int(i)] = node
 
     # Map the relations to primes
-    rel2id, id2rel = get_prime_map_from_rel(
-        unique_rels,
-        starting_value=2,
-        spacing_strategy=spacing_strategy,
-    )
+    if relation_mapping is None:
+        rel2id, id2rel = get_prime_map_from_rel(
+            unique_rels,
+            starting_value=2,
+            spacing_strategy=spacing_strategy,
+        )
+    else:
+        relation_mapping = {str(key): value for key, value in relation_mapping.items()}
+        missing = sorted(set(unique_rels) - set(relation_mapping))
+        if missing:
+            raise ValueError(f"relation_mapping is missing relations: {missing}")
+        if any(not np.isfinite(value) or value <= 0 for value in relation_mapping.values()):
+            raise ValueError("relation_mapping values must be finite and positive")
+        if any(float(value) != int(value) for value in relation_mapping.values()):
+            raise ValueError(
+                "relation_mapping values must be integers before an optional log transform"
+            )
+        rel2id = dict(relation_mapping)
+        id2rel = {value: relation for relation, value in rel2id.items()}
+
+    if spacing_strategy == "constant":
+        rel2id = {relation: 1 for relation in rel2id}
+        id2rel = {1: tuple(rel2id)}
 
     # Map all node and rel values to the corresponding numerical ones.
     df_train["rel_mapped"] = df_train["rel"].astype(str).map(rel2id)
@@ -150,16 +243,22 @@ def create_pam_matrices(
     # Create the lossless representation (with product). This may lead to overflows due to the product.
     aggregated_df_lossless = (
         df_train.groupby(["head_mapped", "tail_mapped"])["rel_mapped"]
-        .aggregate("prod")
+        .aggregate(lambda values: math.prod(int(value) for value in values))
         .reset_index()
     )
 
     # If we don't case about the loss-less scenario we can omit this error.
     if check_error_lossless:
-        if any(aggregated_df_lossless["rel_mapped"].values > np.iinfo(np.int64).max):
+        if any(
+            int(value) > np.iinfo(np.int64).max
+            for value in aggregated_df_lossless["rel_mapped"]
+        ):
             raise OverflowError(
                 f"You have overflowing due to large prime number products in 1-hop PAM. Please lower the spacing strategy (lowest is 'step_1'), current is {spacing_strategy}"
             )
+    aggregated_df_lossless["rel_mapped"] = aggregated_df_lossless[
+        "rel_mapped"
+    ].astype(np.int64)
 
     # Construct the "lossless" 1-hop array (with products of primes probably)
     pam_1hop_lossless = csr_array(
@@ -200,10 +299,10 @@ def create_pam_matrices(
         dtype=np.float64,
     )
 
-    # Map everything to 1. This is only for testing scenarios.
-    if spacing_strategy == "constant":
-        pam_1hop_lossy.data = np.ones_like(pam_1hop_lossy.data)
+    if not unique_nodes:
+        return pam_1hop_lossless, [pam_1hop_lossy], node2id, rel2id, False
 
+    # Map everything to 1. This is only for testing scenarios.
     # Create the GraphBLAS equivalent
     A_gb = gb.io.from_scipy_sparse(pam_1hop_lossy)
 
@@ -216,7 +315,7 @@ def create_pam_matrices(
             print(f"Hop {ii + 1}")
         cur_previous_power = pam_power_gb[-1].dup()
         if eliminate_diagonal:
-            cur_previous_power.setdiag(0)
+            cur_previous_power = cur_previous_power.select(gb.select.offdiag).new()
         updated_power_gb = cur_previous_power.mxm(A_gb, method).new()
 
         updated_power = gb.io.to_scipy_sparse(updated_power_gb)
@@ -224,7 +323,10 @@ def create_pam_matrices(
         sparsity = get_sparsity(updated_power)
         if print_:
             print(f"Sparsity {ii + 1}-hop: {sparsity:.2f} %")
-        if sparsity < 100 * break_with_sparsity_threshold and ii > 1:
+        if (
+            break_with_sparsity_threshold != -1
+            and sparsity / 100 < break_with_sparsity_threshold
+        ):
             if print_:
                 print(
                     f"Stopped at {ii + 1} hops due to non-sparse matrix.. Current sparsity {sparsity:.2f} % < {break_with_sparsity_threshold}"
@@ -237,40 +339,85 @@ def create_pam_matrices(
     return pam_1hop_lossless, pam_powers, node2id, rel2id, broke_cause_of_sparsity
 
 
-def get_sparsity(A: csr_array) -> float:
-    """Calculate sparsity % of scipy sparse matrix.
-    Args:
-        A (scipy.sparse): Scipy sparse matrix
-    Returns:
-        (float)): Sparsity as a float
-    """
+def create_pam(
+    df_train: pd.DataFrame,
+    max_order: int = 5,
+    use_log: bool = True,
+    method: Literal["plus_times", "plus_plus", "constant"] = "plus_times",
+    spacing_strategy: str = "step_10",
+    eliminate_diagonal: bool = False,
+    break_with_sparsity_threshold: float = -1,
+    check_error_lossless: bool = True,
+    print_: bool = False,
+    relation_mapping: dict[str, int | float] | None = None,
+) -> PAMResult:
+    """Create PAMs and return a typed result with interpretation metadata."""
 
-    return 100 * (1 - A.nnz / (A.shape[0] ** 2))
-
-
-if __name__ == "__main__":
-    from data_loading import load_csv
-
-    path = "../data/dummy_data/train.txt"
-
-    df_train_orig, df_train = load_csv(path, add_inverse_edges="YES")
-    # print(df_train_orig)
-    (
-        pam_lossles,
-        pam_powers,
-        node2id,
-        rel2id,
-        broke_cause_of_sparsity,
-    ) = create_pam_matrices(
-        df_train,
-        max_order=2,
-        method="plus_times",
-        use_log=False,
-        spacing_strategy="step_1",
+    legacy_method = method
+    values = _create_pam_matrices(
+        df_train=df_train,
+        max_order=max_order,
+        use_log=use_log,
+        method=method,
+        spacing_strategy=spacing_strategy,
+        eliminate_diagonal=eliminate_diagonal,
+        break_with_sparsity_threshold=break_with_sparsity_threshold,
+        check_error_lossless=check_error_lossless,
+        print_=print_,
+        relation_mapping=relation_mapping,
     )
-    print(rel2id)
-    node_names = list(node2id.keys())
-    pam_2 = pd.DataFrame(pam_powers[1].todense(), columns=node_names)
-    pam_2.index = node_names  # type:ignore
-    print("PAM@2")
-    print(pam_2)
+    one_hop, powers, node_map, fitted_relation_map, stopped = values
+    effective_method = "plus_times" if legacy_method == "constant" else legacy_method
+    effective_encoding = "constant" if legacy_method == "constant" else spacing_strategy
+    if not node_map:
+        stopping_reason = "empty_graph"
+    elif stopped:
+        stopping_reason = "sparsity_threshold"
+    else:
+        stopping_reason = "max_order"
+    return PAMResult(
+        one_hop_exact=one_hop,
+        powers=tuple(powers),
+        node_map=node_map,
+        relation_map=fitted_relation_map,
+        metadata=PAMMetadata(
+            encoding=effective_encoding,
+            use_log=use_log,
+            semiring=effective_method,
+            eliminate_diagonal=eliminate_diagonal,
+            minimum_sparsity=(
+                None
+                if break_with_sparsity_threshold == -1
+                else break_with_sparsity_threshold
+            ),
+        ),
+        stopping_reason=stopping_reason,
+    )
+
+
+def create_pam_matrices(
+    df_train: pd.DataFrame,
+    max_order: int = 5,
+    use_log: bool = True,
+    method: Literal["plus_times", "plus_plus", "constant"] = "plus_times",
+    spacing_strategy: str = "step_10",
+    eliminate_diagonal: bool = False,
+    break_with_sparsity_threshold: float = -1,
+    check_error_lossless: bool = True,
+    print_: bool = False,
+    relation_mapping: dict[str, int | float] | None = None,
+) -> tuple[csr_array, list[csr_array], dict, dict, bool]:
+    """Compatibility adapter returning the historical five-element tuple."""
+
+    return create_pam(
+        df_train=df_train,
+        max_order=max_order,
+        use_log=use_log,
+        method=method,
+        spacing_strategy=spacing_strategy,
+        eliminate_diagonal=eliminate_diagonal,
+        break_with_sparsity_threshold=break_with_sparsity_threshold,
+        check_error_lossless=check_error_lossless,
+        print_=print_,
+        relation_mapping=relation_mapping,
+    ).as_legacy_tuple()

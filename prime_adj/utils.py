@@ -88,6 +88,10 @@ def calculate_hits_at_k(
     """
     hits_at_k = {}
     num_test_samples = results.shape[0]
+    if num_test_samples == 0:
+        hits_at_k = {k: 0.0 for k in wanted_ranks}
+        hits_at_k["UpperBound"] = 0.0
+        return hits_at_k
     for k in wanted_ranks:
         hits_at_k[k] = (
             results[

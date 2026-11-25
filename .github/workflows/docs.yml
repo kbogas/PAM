@@ -1,0 +1,78 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - ".github/workflows/docs.yml"
+      - "docs/**"
+      - "examples/tutorial_*.py"
+      - "experiments/results/**"
+      - "prime_adj/**"
+      - "scripts/render_docs_figures.py"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - ".github/workflows/docs.yml"
+      - "docs/**"
+      - "examples/tutorial_*.py"
+      - "experiments/results/**"
+      - "prime_adj/**"
+      - "scripts/render_docs_figures.py"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    # Secrets are deliberately unavailable to pull requests from forks.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Install documentation dependencies
+        run: python -m pip install ".[bop,docs]"
+      - name: Regenerate and verify figures
+        run: python scripts/render_docs_figures.py && git diff --exit-code -- docs/assets
+      - name: Run documentation tutorials
+        run: >-
+          python examples/tutorial_nodes.py &&
+          python examples/tutorial_pairs.py &&
+          python examples/tutorial_subgraphs.py &&
+          python examples/tutorial_multigraph.py
+      - name: Build documentation
+        run: mkdocs build --strict --site-dir _build/html
+      - name: Upload detected branch, tag, or pull request version
+        uses: readthedocs/upload-action@80f3c6547919b97858e61ffbe3a4990a25959f9a # v1
+        with:
+          token: ${{ secrets.READTHEDOCS_TOKEN }}
+          project-slug: primeadj
+          html: _build/html
+          privacy-level: public
+      - name: Update latest alias
+        if: github.ref == 'refs/heads/main'
+        uses: readthedocs/upload-action@80f3c6547919b97858e61ffbe3a4990a25959f9a # v1
+        with:
+          token: ${{ secrets.READTHEDOCS_TOKEN }}
+          project-slug: primeadj
+          html: _build/html
+          version-name: latest
+          privacy-level: public
+      - name: Update stable alias
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: readthedocs/upload-action@80f3c6547919b97858e61ffbe3a4990a25959f9a # v1
+        with:
+          token: ${{ secrets.READTHEDOCS_TOKEN }}
+          project-slug: primeadj
+          html: _build/html
+          version-name: stable
+          privacy-level: public

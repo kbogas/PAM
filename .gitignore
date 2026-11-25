@@ -127,6 +127,10 @@ dmypy.json
 
 # data
 data/
+!data/
+data/*
+!data/dummy_data/
+!data/dummy_data/*.txt
 
 # Pyre type checker
 .pyre/

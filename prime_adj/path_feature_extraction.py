@@ -37,30 +37,3 @@ def generate_path_features(
     feats = pd.DataFrame(feats, columns=[f"val@{k+1}" for k in range(len(pam_powers))])
     feats["pairs"] = pair_names
     return feats
-
-
-if __name__ == "__main__":
-    from data_loading import load_data
-    from pam_creation import create_pam_matrices
-
-    path = "./data/dummy_data"
-
-    df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-        path, project_name="test", add_inverse_edges="YES", sep=","
-    )
-    (
-        pam_1hop_lossless,
-        pam_powers,
-        node2id,
-        rel2id,
-        broke_cause_of_sparsity,
-    ) = create_pam_matrices(
-        df_train,
-        max_order=5,
-        method="plus_times",
-        use_log=False,
-        eliminate_diagonal=False,
-        spacing_strategy="step_1",
-    )
-    path_feats = generate_path_features(pam_powers, pairs=[])
-    print(path_feats)

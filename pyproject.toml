@@ -11,19 +11,16 @@ license.file = "LICENSE.md"
 authors = [
   { name = "Konstantinos Bougiatiotis", email = "bogas.ko@email.com" },
 ]
-requires-python = ">=3.9"
-version="0.0.9"
+requires-python = ">=3.11,<3.15"
+version="0.0.11"
 dynamic = ["dependencies"]
-
-
-[tool.hatch.metadata.hooks.requirements_txt]
-files = ["requirements.txt"]
 
 classifiers = [
   "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: Unix",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -31,3 +28,17 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/kbogas/PAM"
 ArXiv = "https://arxiv.org/abs/2209.06575"
+
+[project.optional-dependencies]
+lossless = ["numba>=0.58.1"]
+bop = ["scikit-learn>=1.4"]
+dev = ["build>=1.2", "pytest>=8"]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.27",
+  "matplotlib>=3.9",
+]
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]

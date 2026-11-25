@@ -1,127 +1,118 @@
-# Prime Adjacency Matrix
-A bare-bones implementation of the [PAM framework](https://arxiv.org/abs/2209.06575), i.e. Prime Adjacency Matrices for Multi-relational Networks.
+# Prime Adjacency Matrices and Bag of Paths
 
+`prime-adj` is a CPU-oriented Python implementation of Prime Adjacency Matrices
+(PAMs) for multi-relational directed graphs. PAM uses numeric relation weights
+and sparse multiplication to summarize multi-hop walks in a fast and efficient manner. Bag of Paths (BoP) turns those summaries into sparse features for nodes, pairs, and graphs.
 
-Mainly used for testing.
-Check each .py in its "__main__"" component where we call each of the major functions for their functionalities.
+The distribution is `prime-adj`.
 
 ## Installation
-You can install it manually (by cloining and using requiremets.txt) or through pip:
 
-```cmd
-pip install prime_adj
+Python 3.11–3.14 is supported, tested on Linux and macOS.
+
+```bash
+python -m pip install prime-adj
+python -m pip install "prime-adj[bop]"       # sklearn BoP transformer
+python -m pip install "prime-adj[lossless]"  # experimental Numba path
 ```
 
-## Usage
+The backend is python-graphblas with SuiteSparse, with SciPy CSR arrays at the
+public sparse boundary.
 
-It works using as input any collection of triples in the form of a .txt where each line corresponds to one triple
-in the form:
+## Quickstart: triples → PAM → BoP
 
-```
-ent1, rel1, ent2,
-ent2, rel2, ent3
-```
-The delimiters can change. Please see load_data.py file for this.
+```python
+import pandas as pd
+from prime_adj.bop import BagOfPaths, BoPDocument
+from prime_adj.pam_creation import create_pam
 
-You can check each of the .py files for the specific functionality you are interested in.
-For example, running:
-
-```py
-
-from prime_adj.data_loading import load_data
-from prime_adj.pam_creation import create_pam_matrices
-from prime_adj.rule_generation import create_ruleset
-from prime_adj.tail_prediction_with_rules import predict_tail_with_explanations
-from prime_adj.utils import calculate_hits_at_k
-
-path = "./data/dummy_data/"
-project_name = "test"
-
-df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-    path, project_name=project_name, add_inverse_edges="NO", sep=","
+triples = pd.DataFrame(
+    [("alice", "knows", "bob"),
+     ("bob", "knows", "carol"),
+     ("alice", "likes", "carol")],
+    columns=["head", "rel", "tail"],
 )
-print(f"\nLoaded Data, will create PAMs... \n")
+result = create_pam(triples, max_order=2, use_log=False)
+signature = tuple(sorted(
+    (label, float(weight)) for label, weight in result.relation_map.items()
+))
+documents = [
+    BoPDocument(result.powers, "node", node, mapping_signature=signature)
+    for node in range(len(result.node_map))
+]
+transformer = BagOfPaths(level="node", weighting="count", norm=None)
+features = transformer.fit_transform(documents)
 
-(
-    pam_1hop_lossless,
-    pam_powers,
-    node2id,
-    rel2id,
-    broke_with_sparsity,
-) = create_pam_matrices(df_train, use_log=False, max_order=3)
-print(f"\nCreated PAMs, will generate rules... \n")
-
-all_rules_df = create_ruleset(
-    pam_1hop_lossless, pam_powers, use_log=False, max_num_hops=-1
-)
-print(f"\nCreated {all_rules_df.shape[0]} rules, will generate predictions...  \n")
-
-k_hop_pams = [pam_1hop_lossless] + pam_powers[1:]
-
-predict_tail_with_explanations(
-    df_test, all_rules_df, k_hop_pams, node2id, rel2id, rank_rules_by_="score"
-)
-
+print("nodes:", result.node_map)
+print("relations:", result.relation_map)
+print("nonzeros by hop:", [pam.nnz for pam in result.powers])
+print("BoP shape:", features.shape)
+print("features:", transformer.get_feature_names_out().tolist())
+print("counts:", features.toarray().astype(int).tolist())
 ```
 
-Will load the dummy data, calculate up to 3-hop PAMs, generate rules, predict possible tail candidates for each the two test queries in the *./test/dummy_data/test.txt* file and print those predictions...
+Output:
 
-Specifically, you will get:
-
-```cmd
-No valid.txt found in ../test/dummy_data... df_eval will contain the train data..
-Total: 9 triples in train + eval!)
-In train: 9
-In valid: 9
-In test: 2
-
-Loaded Data, will create PAMs... 
-
-# of unique rels: 3      | # of unique nodes: 5
-(5, 5) Sparsity: 68.00 %
-Hop 2
-Sparsity 2-hop: 76.00 %
-Hop 3
-Sparsity 3-hop: 88.00 %
-Hop 4
-Sparsity 4-hop: 96.00 %
-Hop 5
-Sparsity 5-hop: 100.00 %
-
-Created PAMs, will generate rules... 
-
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 806.19it/s]
-
-Created 12 rules, will generate predictions...  
-
-Query (0): Nick - knows - Anna
-(Correct Match) 0.4000 : knows(Nick, B ) ^ knows( B ,Anna) -> knows(Nick,Anna)
-
-
-
-Query (1): George - lives_in - Athens
-(Correct Match) 0.5000 : works_in(George,Athens) -> lives_in(George,Athens)
-
-
-
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:00<00:00, 300.44it/s]
-Tail Hits@1: 100.00 %
-Tail Hits@3: 100.00 %
-Tail Hits@5: 100.00 %
-Tail Hits@10: 100.00 %
-Tail Hits@UpperBound: 100.00 %
+```text
+nodes: {'alice': 0, 'bob': 1, 'carol': 2}
+relations: {'knows': 3, 'likes': 17}
+nonzeros by hop: [3, 1]
+BoP shape: (3, 6)
+features: ['h1|in|v=17', 'h1|in|v=3', 'h1|out|v=17', 'h1|out|v=3', 'h2|in|v=9', 'h2|out|v=9']
+counts: [[0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 0, 0], [1, 1, 0, 0, 1, 0]]
 ```
 
+Run this as `python examples/quickstart.py`. See also
+[`examples/prediction.py`](examples/prediction.py), the
+[`mapping contract`](docs/mapping-contract.md), and the
+[`BoP guide`](docs/bag-of-paths.md).
 
+## Exactness limits
 
-## TODOS:
+The integer one-hop product can recover parallel prime-encoded relations while
+it fits in `int64`. Ordinary numeric multi-hop PAMs are compact but lossy:
+multiplication is commutative, so reversed relation sequences can collide, and
+different walk collections can share a scalar cell. The default-used log values also introduce
+floating-point effects. Thus, better treat scalar BoP tokens, as features of path signatures, not proof of a unique ordered path.
 
-1. Add consistent documentation and move examples from the main sections of each .py to dedicated files or notebooks.
-2. Check the effect of eliminate zeros, sort_indices in create_pam_matrices function.
-3. Link prediction
-   1. Add filtering cache mechanism.
-   2. Parallelize (WN18RR takes about 2.8 mins)
-   3. Refactor tail prediction to link prediction
+## Publications
 
+### Primary citation
 
+**From primes to paths: Enabling fast multi-relational graph analysis** —
+Konstantinos Bougiatiotis and Georgios Paliouras. *Data & Knowledge
+Engineering*, article 102554, 2026. North-Holland.
+[Journal article](https://doi.org/10.1016/j.datak.2026.102554), [code and experiments](https://github.com/kbogas/PAM_BoP)
 
+### Earlier versions
+
+The main idea was initially explored in:
+- **Analysing Biomedical Knowledge Graphs using Prime Adjacency Matrices** —
+  Konstantinos Bougiatiotis and Georgios Paliouras. *2023 IEEE 36th
+  International Symposium on Computer-Based Medical Systems (CBMS)*,
+  pp. 628–633, 2023. IEEE.
+  [IEEE/DOI](https://doi.org/10.1109/CBMS58004.2023.00291)
+
+- **Efficient Complex Network Representation Using Prime Numbers** —
+  Konstantinos Bougiatiotis and Georgios Paliouras. *International Conference
+  on Complex Networks and Their Applications*, pp. 75–86, 2023. Springer
+  Nature Switzerland, Cham.
+  [Springer/DOI](https://doi.org/10.1007/978-3-031-53472-0_7)
+
+### Other uses
+
+**Identifying drug repurposing candidates for rare neuro-muscular disorders,
+using different AI methods on the literature knowledge graph** — Fotios
+Papadimas, Stavroula Svolou, Konstantinos Bougiatiotis, Fotis Aisopos,
+Anastasia Krithara, and Georgios Paliouras. *JAMIA Open* 9(2), ooag050,
+2026. Oxford University Press.
+[Oxford Academic/DOI](https://doi.org/10.1093/jamiaopen/ooag050)
+
+This application uses path-based features for drug–disease link prediction on
+a literature knowledge graph.
+
+## License
+
+This repository retains its existing dual licensing terms. Individual
+non-commercial use and use by legal entities have different conditions; review
+[`LICENSE.md`](LICENSE.md) before using, modifying, or distributing the code.

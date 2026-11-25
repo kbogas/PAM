@@ -23,12 +23,12 @@ def create_ruleset(
     https://arxiv.org/abs/2305.10467
 
     Args:
-        pam_powers (csr_array): Lossless 1-hop
+        pam_1hop_lossless (csr_array): Lossless 1-hop PAM.
         pam_powers (list[csr_array]): List of the k-hop pams.
         use_log (bool): Whether the primes are logarithmed first.
-        max_num_hops (int): Maximun hops to take into account when creating rules.
-        Range in [1, len(pam_powers) + 1]
-        laplace_smoothing_alpha (int): Laplace smoothing for confidence of rules
+        max_num_hops (int): Maximum hops used to create rules. Valid values are
+            in ``[1, len(pam_powers) + 1]``; ``-1`` uses every available hop.
+        laplace_smoothing_alpha (float): Laplace smoothing for rule confidence.
 
     Returns:
         pd.DataFrame: DataFrame with rules and details
@@ -159,31 +159,3 @@ def create_ruleset(
         all_rules_df["head_rel"] = all_rules_df["head_rel"].apply(np.log)
 
     return all_rules_df
-
-
-if __name__ == "__main__":
-    from data_loading import load_data
-    from pam_creation import create_pam_matrices
-
-    path = "./data/dummy_data"
-
-    df_train_orig, df_train, df_eval, df_test, already_seen_triples = load_data(
-        path, project_name="test", add_inverse_edges="NO", sep=",", skiprows=0
-    )
-    (
-        pam_1hop_lossless,
-        pam_powers,
-        node2id,
-        rel2id,
-        broke_cause_of_sparsity,
-    ) = create_pam_matrices(
-        df_train,
-        max_order=5,
-        method="plus_times",
-        use_log=False,
-        spacing_strategy="step_1",
-    )
-    df_rules = create_ruleset(
-        pam_1hop_lossless, pam_powers, use_log=False, max_num_hops=-1
-    )
-    print(df_rules)

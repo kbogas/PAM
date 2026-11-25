@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install core and optional features
+        run: python -m pip install --upgrade pip && python -m pip install ".[lossless,bop,dev]"
+      - name: Test
+        run: python -m pytest -q
+      - name: Run example
+        run: python example.py && python examples/quickstart.py && python examples/prediction.py
+      - name: Verify sparse conversion and optional imports
+        run: >-
+          python -c "import graphblas, numba, sklearn;
+          from graphblas import io;
+          from scipy.sparse import csr_array;
+          A = csr_array([[0, 2], [3, 0]]);
+          assert (io.to_scipy_sparse(io.from_scipy_sparse(A)) != A).nnz == 0"
+
+  distributions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: python -m pip install ".[dev]"
+      - run: python -m build
+      - run: python -m pip install --force-reinstall dist/*.whl
+      - run: cd /tmp && python -c "import prime_adj.pam_creation"
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Install documentation dependencies
+        run: python -m pip install ".[bop,docs]"
+      - name: Regenerate figures
+        run: python scripts/render_docs_figures.py && git diff --exit-code -- docs/assets
+      - name: Run documentation tutorials
+        run: >-
+          python examples/tutorial_nodes.py &&
+          python examples/tutorial_pairs.py &&
+          python examples/tutorial_subgraphs.py &&
+          python examples/tutorial_multigraph.py
+      - name: Build strict documentation
+        run: mkdocs build --strict
